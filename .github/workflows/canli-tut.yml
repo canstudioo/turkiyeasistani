@@ -1,0 +1,40 @@
+# Türkiye Asistanı — ücretsiz Supabase projesi 7 gün hareketsiz kalırsa duraklatılır.
+# Bu görev her gün veritabanına ve sunucu fonksiyonuna basit bir istek atarak projeyi canlı tutar.
+name: Sunucuyu canlı tut
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Veritabanı (herkese açık rehber listesi, anon anahtar)
+        run: |
+          curl --fail --show-error --silent --retry 3 --retry-delay 10 \
+            -H "apikey: sb_publishable_3mNby1X43AqCRW54Ldk06A_w4HVEMsl" \
+            "https://kwtvgkepkljoizbldahn.supabase.co/rest/v1/guides?select=id&limit=1" > /dev/null
+
+      - name: Sunucu fonksiyonu sağlık kontrolü
+        run: |
+          curl --fail --show-error --silent --retry 3 --retry-delay 10 \
+            "https://kwtvgkepkljoizbldahn.supabase.co/functions/v1/mobile/health"
+
+      # GitHub, 60 gün hareketsiz kalan depolarda zamanlanmış görevleri kapatır → ayda bir küçük bir kayıt at.
+      - name: Depoyu hareketli tut (ayın 1'i)
+        run: |
+          if [ "$(date -u +%d)" = "01" ]; then
+            date -u +"%Y-%m-%d" > son-kontrol.txt
+            git config user.name "canli-tut"
+            git config user.email "canli-tut@users.noreply.github.com"
+            git add son-kontrol.txt
+            git commit -m "Aylık canlılık kaydı" || true
+            git push || true
+          fi

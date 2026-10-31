@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Yeni şifre belirle — Türkiye Asistanı</title>
+<link rel="icon" href="../icon.png">
+<style>
+:root{--bg:#E7EEF9;--fg:#12192B;--muted:#576076;--primary:#4D77FC;--red:#E6293F;--green:#07A893}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--fg);
+background:var(--bg) radial-gradient(circle at 10% 0%,rgba(77,119,252,.25),transparent 45%) no-repeat;min-height:100vh}
+main{max-width:440px;margin:0 auto;padding:40px 16px 56px}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--fg);font-weight:800;font-size:18px}
+.brand img{width:44px;height:44px;border-radius:12px}
+.card{background:rgba(255,255,255,.86);border:2px solid #fff;border-radius:22px;padding:22px;margin-top:24px;box-shadow:0 10px 24px rgba(77,119,252,.12)}
+h1{font-size:24px;margin:0 0 6px}p{margin:0 0 14px;color:var(--muted);line-height:1.55;font-size:15px}
+label{display:block;font-weight:700;font-size:13px;margin:14px 0 6px}
+input{width:100%;font:inherit;font-size:16px;padding:14px;border-radius:14px;border:2px solid #D8DEE8;background:#fff;color:var(--fg)}
+input:focus{outline:none;border-color:var(--primary)}
+button{width:100%;margin-top:18px;font:inherit;font-weight:800;font-size:16px;padding:15px;border:0;border-radius:16px;color:#fff;
+background:linear-gradient(135deg,#3B60E1,#197F74);cursor:pointer}
+button:disabled{opacity:.6;cursor:default}
+.msg{margin-top:14px;font-size:14px;font-weight:600}.err{color:var(--red)}.ok{color:var(--green)}
+.hidden{display:none}
+</style></head><body><main>
+<a class="brand" href="../"><img src="../icon.png" alt="">Türkiye Asistanı</a>
+<div class="card">
+  <h1>Yeni şifre belirle</h1>
+  <p id="intro">Hesabın için yeni bir şifre yaz. En az 6 karakter olsun.</p>
+  <form id="form" class="hidden" autocomplete="off">
+    <label for="p1">Yeni şifre</label>
+    <input id="p1" type="password" minlength="6" autocomplete="new-password" required>
+    <label for="p2">Yeni şifre (tekrar)</label>
+    <input id="p2" type="password" minlength="6" autocomplete="new-password" required>
+    <button id="btn" type="submit">Şifreyi güncelle</button>
+  </form>
+  <div id="msg" class="msg"></div>
+</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var URL_ = "https://kwtvgkepkljoizbldahn.supabase.co";
+  var KEY = "sb_publishable_3mNby1X43AqCRW54Ldk06A_w4HVEMsl";
+  var $ = function (id) { return document.getElementById(id); };
+  var msg = $("msg"), form = $("form"), intro = $("intro");
+  function show(text, cls) { msg.textContent = text; msg.className = "msg " + (cls || ""); }
+
+  var client = supabase.createClient(URL_, KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  var hash = new URLSearchParams(location.hash.replace(/^#/, ""));
+  var query = new URLSearchParams(location.search);
+  var err = hash.get("error_description") || query.get("error_description");
+  var access = hash.get("access_token"), refresh = hash.get("refresh_token");
+
+  // Adres çubuğunda belirteç kalmasın.
+  if (location.hash || location.search) history.replaceState(null, "", location.pathname);
+
+  if (err || !access || !refresh || hash.get("type") !== "recovery") {
+    intro.textContent = "";
+    show("Bu bağlantının süresi dolmuş ya da geçersiz. Uygulamada “Şifremi unuttum”a basarak yeni bir bağlantı iste.", "err");
+    return;
+  }
+
+  client.auth.setSession({ access_token: access, refresh_token: refresh }).then(function (r) {
+    if (r.error) { intro.textContent = ""; show("Bu bağlantının süresi dolmuş. Uygulamadan yeni bir bağlantı iste.", "err"); return; }
+    form.className = "";
+  });
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var a = $("p1").value, b = $("p2").value;
+    if (a.length < 6) return show("Şifre en az 6 karakter olmalı.", "err");
+    if (a !== b) return show("İki şifre aynı değil.", "err");
+    $("btn").disabled = true; show("Güncelleniyor…");
+    client.auth.updateUser({ password: a }).then(function (r) {
+      if (r.error) {
+        $("btn").disabled = false;
+        var m = /different from the old password/i.test(r.error.message) ? "Yeni şifre eskisiyle aynı olamaz." : "Şifre güncellenemedi. Biraz sonra tekrar dene.";
+        return show(m, "err");
+      }
+      form.className = "hidden"; intro.textContent = "";
+      show("Şifren güncellendi. Uygulamaya dönüp yeni şifrenle giriş yapabilirsin.", "ok");
+      client.auth.signOut();
+    });
+  });
+})();
+</script></body></html>
